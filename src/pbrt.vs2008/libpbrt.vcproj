@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
+	Version="9,00"
 	Name="libpbrt"
 	ProjectGUID="{A4BCEF80-A864-40DF-94B1-0E0E61CEC7CC}"
 	RootNamespace="libpbrt"
@@ -873,6 +873,10 @@
 				</File>
 				<File
 					RelativePath="..\cameras\perspective.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\cameras\thinlenstiltshift.cpp"
 					>
 				</File>
 			</Filter>
@@ -1995,6 +1999,10 @@
 				</File>
 				<File
 					RelativePath="..\cameras\perspective.h"
+					>
+				</File>
+				<File
+					RelativePath="..\cameras\thinlenstiltshift.h"
 					>
 				</File>
 			</Filter>
