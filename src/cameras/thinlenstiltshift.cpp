@@ -70,42 +70,13 @@ float ThinLensTiltShiftCamera::GenerateRay(
     const CameraSample &sample,
     Ray *ray
 ) const {
-    // Generate raster and camera samples
-    // sample in Raster space
-    Point pointRaster(sample.imageX, sample.imageY, 0);
-    Point pointCamera;
-    // convert it to a sample in Camera space
-    // pointCamera->z should be mapped from 0 to the near plane
-    RasterToCamera(pointRaster, &pointCamera);
-    // project the point from the near plane to the untilted film
-    float filmT = filmShift.z / pointCamera.z;
-    Point pointFilm = Point(pointCamera.x * filmT, pointCamera.y *filmT, filmShift.z);
-    // tilt the film
-    Point pointFilmTilted;
-    filmTiltRotate(pointFilm, &pointFilmTilted);
-    *ray = Ray(Point(0,0,0), Vector(pointFilm), 0.f, INFINITY);
+    // Get the ray going through the lens center
+    Point filmSample = getFilmSample(getCameraSample(sample));
+    *ray = Ray(Point(0, 0, 0), Vector(filmSample), 0.f, INFINITY);
+    
     // Modify ray for depth of field
-    if (lensRadius > 0.) {
-        // Sample point on lens
-        float lensU, lensV;
-        ConcentricSampleDisk(sample.lensU, sample.lensV, &lensU, &lensV);
-        lensU *= lensRadius;
-        lensV *= lensRadius;
-
-        // Compute point on plane of focus
-        float ft;
-        if (tiltEnabled) {
-            ft = ((scheimpflugLineX - lensU) * focalLength) /
-                ((ray->d.x * focalLength) - (hingeLineX - scheimpflugLineX) * ray->d.z);
-        } else {
-            ft = focalDistance / ray->d.z;
-        }
-        Point Pfocus = (*ray)(ft);
-
-        // Update ray for effect of lens
-        ray->o = Point(lensU, lensV, 0.f);
-        ray->d = Normalize(Pfocus - ray->o);
-    }
+    modifyRayForDof(*ray, sample);
+    
     ray->time = Lerp(sample.time, shutterOpen, shutterClose);
     CameraToWorld(*ray, ray);
     return 1.f;
@@ -116,55 +87,90 @@ float ThinLensTiltShiftCamera::GenerateRayDifferential(
     const CameraSample &sample,
     RayDifferential *ray
 ) const {
-    // Generate raster and camera samples
-    Point pointRaster(sample.imageX, sample.imageY, 0);
-    Point pointCamera;
-    RasterToCamera(pointRaster, &pointCamera);
-    // project the point from the near plane to the untilted film
-    float filmT = filmShift.z / pointCamera.z;
-    Point pointFilm = Point(pointCamera.x * filmT, pointCamera.y *filmT, filmShift.z);
-    // tilt the film
-    Point pointFilmTilted;
-    filmTiltRotate(pointFilm, &pointFilmTilted);
-    Vector dir = Normalize(Vector(pointFilmTilted.x, pointFilmTilted.y, pointFilmTilted.z));
-    *ray = RayDifferential(Point(0,0,0), dir, 0.f, INFINITY);
+    // Get the ray going through the lens center
+    Point cameraSample = getCameraSample(sample);
+    Point filmSample = getFilmSample(cameraSample);
+    *ray = RayDifferential(Point(0,0,0), Normalize(Vector(filmSample)), 0.f, INFINITY);
+    
     // Modify ray for depth of field
-    if (lensRadius > 0.) {
-        // Sample point on lens
-        float lensU, lensV;
-        ConcentricSampleDisk(sample.lensU, sample.lensV, &lensU, &lensV);
-        lensU *= lensRadius;
-        lensV *= lensRadius;
-
-        // Compute point on plane of focus
-        float ft;
-        if (tiltEnabled) {
-            ft = ((scheimpflugLineX - lensU) * focalLength) /
-                ((ray->d.x * focalLength) - (hingeLineX - scheimpflugLineX) * ray->d.z);
-        } else {
-            ft = focalDistance / ray->d.z;
-        }
-        Point Pfocus = (*ray)(ft);
-
-        // Update ray for effect of lens
-        ray->o = Point(lensU, lensV, 0.f);
-        Vector outputDirection = Pfocus - ray->o;
-        if (Pfocus.z < 0.) {
-            outputDirection = -outputDirection;
-        }
-        ray->d = Normalize(outputDirection);
-    }
+    modifyRayForDof(*ray, sample);
 
     // Compute offset rays for _ThinLensTiltShiftCamera_ ray differentials
     ray->rxOrigin = ray->ryOrigin = ray->o;
-    ray->rxDirection = Normalize(Vector(pointCamera) + dxCamera);
-    ray->ryDirection = Normalize(Vector(pointCamera) + dyCamera);
+    ray->rxDirection = Normalize(Vector(cameraSample) + dxCamera);
+    ray->ryDirection = Normalize(Vector(cameraSample) + dyCamera);
     ray->time = Lerp(sample.time, shutterOpen, shutterClose);
     CameraToWorld(*ray, ray);
     ray->hasDifferentials = true;
     return 1.f;
 }
 
+float ThinLensTiltShiftCamera::computeFocalDistance(
+    float focalLength,
+    float imageDistance
+) {
+    return 1 / ((1 / focalLength) - (1 / imageDistance));
+}
+
+/**
+ * Convert sample from Raster space to Camera space.
+ * cameraSample->z should be mapped from 0 to the near plane.
+ */
+inline Point ThinLensTiltShiftCamera::getCameraSample(
+    const CameraSample &sample
+) const {
+    return RasterToCamera(Point(sample.imageX, sample.imageY, 0));
+}
+
+/**
+ * Get film sample in Camera space.
+ */
+inline Point ThinLensTiltShiftCamera::getFilmSample(
+    const Point &cameraSample
+) const {
+    // project the point from the near plane to the untilted film
+    float filmT = filmShift.z / cameraSample.z;
+    Point filmSample = Point(cameraSample.x * filmT, cameraSample.y * filmT, filmShift.z);
+    // tilt the film
+    return filmTiltRotate(filmSample);
+}
+
+/**
+ * Modify the ray for depth of field.
+ */
+inline void ThinLensTiltShiftCamera::modifyRayForDof(
+    Ray &ray,
+    const CameraSample &sample
+) const {
+    // TODO: use an epsilon for float comparison
+    if (lensRadius <= 0.) {
+        return;
+    }
+
+    // Sample point on lens
+    float lensU, lensV;
+    ConcentricSampleDisk(sample.lensU, sample.lensV, &lensU, &lensV);
+    lensU *= lensRadius;
+    lensV *= lensRadius;
+
+    // Compute point on plane of focus
+    float ft; // ray parameter
+    if (tiltEnabled) {
+        ft = ((scheimpflugLineX - lensU) * focalLength) /
+            ((ray.d.x * focalLength) - (hingeLineX - scheimpflugLineX) * ray.d.z);
+    } else {
+        ft = focalDistance / ray.d.z;
+    }
+    Point focusPoint = ray(ft);
+
+    // Update the ray for effect of lens
+    ray.o = Point(lensU, lensV, 0.f);
+    Vector outputDirection = focusPoint - ray.o;
+    if (focusPoint.z < 0.) {
+        outputDirection = -outputDirection;
+    }
+    ray.d = Normalize(outputDirection);
+}
 
 ThinLensTiltShiftCamera *CreateThinLensTiltShiftCamera(
     const ParamSet &params,
@@ -223,8 +229,4 @@ ThinLensTiltShiftCamera *CreateThinLensTiltShiftCamera(
     return new ThinLensTiltShiftCamera(cam2world, screen, shutteropen,
         shutterclose, lensradius, focallength, imagedistance,
         filmtiltx, filmshifty, fov, film);
-}
-
-float ThinLensTiltShiftCamera::computeFocalDistance(float focalLength, float imageDistance) {
-    return 1 / ((1 / focalLength) - (1 / imageDistance));
 }

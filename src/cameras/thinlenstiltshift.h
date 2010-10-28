@@ -90,6 +90,9 @@ private:
     Transform filmTiltRotate;
 
     static float computeFocalDistance(float focalLength, float imageDistance);
+    Point getCameraSample(const CameraSample &sample) const;
+    Point getFilmSample(const Point &cameraSample) const;
+    void modifyRayForDof(Ray &ray, const CameraSample &sample) const;
 };
 
 
