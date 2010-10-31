@@ -60,9 +60,9 @@ ThinLensTiltShiftCamera:: ThinLensTiltShiftCamera(
     tiltEnabled = (filmtiltx > 0.) || (filmtiltx < 0.);
 
     if (tiltEnabled) {
-        float sine_tilt_angle = sinf(Radians(filmtiltx));
-        scheimpflugLineX = imageDistance / sine_tilt_angle;
-        hingeLineX = focalLength / sine_tilt_angle;
+        float tan_tilt_angle = tanf(Radians(filmtiltx));
+        scheimpflugLineX = imageDistance / tan_tilt_angle;
+        hingeLineX = focalLength / tan_tilt_angle;
     }
 }
 
@@ -73,11 +73,11 @@ float ThinLensTiltShiftCamera::GenerateRay(
 ) const {
     // Get the ray going through the lens center
     Point filmSample = getFilmSample(getCameraSample(sample));
-    *ray = Ray(Point(0, 0, 0), Vector(filmSample), 0.f, INFINITY);
-    
+    *ray = Ray(Point(0, 0, 0), -Vector(filmSample), 0.f, INFINITY);
+
     // Modify ray for depth of field
     modifyRayForDof(*ray, sample);
-    
+
     ray->time = Lerp(sample.time, shutterOpen, shutterClose);
     CameraToWorld(*ray, ray);
     return 1.f;
@@ -158,17 +158,19 @@ inline void ThinLensTiltShiftCamera::modifyRayForDof(
     lensU *= lensRadius;
     lensV *= lensRadius;
 
-    // Compute point on plane of focus
-    float ft; // ray parameter
+    // Compute point on the plane of focus
+    // solve the equation of the ray and the equation of the focus plane
+    // for a common parameter
+    float rayParam; // ray parameter
     if (tiltEnabled) {
-        ft = ((scheimpflugLineX - lensU) * focalLength) /
-            ((ray.d.x * focalLength) - (hingeLineX - scheimpflugLineX) * ray.d.z);
+        rayParam = (scheimpflugLineX * ray.d.z)
+            / (focalLength * (ray.d.x - hingeLineX + scheimpflugLineX));
     } else {
-        ft = focalDistance / ray.d.z;
+        rayParam = focalDistance / ray.d.z;
     }
-    Point focusPoint = ray(ft);
+    Point focusPoint = ray(rayParam);
 
-    // Update the ray for effect of lens
+    // Update the ray to point from the effect of lens sample
     ray.o = Point(lensU, lensV, 0.f);
     Vector outputDirection = focusPoint - ray.o;
     if (focusPoint.z < 0.) {
