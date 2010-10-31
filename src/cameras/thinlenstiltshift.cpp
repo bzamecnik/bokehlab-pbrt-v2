@@ -48,10 +48,7 @@ ThinLensTiltShiftCamera:: ThinLensTiltShiftCamera(
     filmTiltX(filmtiltx), filmShift(filmshift[0], filmshift[1], -imageDistance),
     focalLength(focalLength_),
     scheimpflugLineX(0.), hingeLineX(0.),
-    filmTiltRotate(
-        Translate(Vector(0, 0, -imageDistance)) *
-        RotateY(filmtiltx) *
-        Translate(Vector(0, 0, imageDistance)))
+    filmTiltRotate(RotateY(filmtiltx))
 {
     // Compute differential changes in origin for perspective camera rays
     dxCamera = RasterToCamera(Point(1,0,0)) - RasterToCamera(Point(0,0,0));
@@ -135,9 +132,11 @@ inline Point ThinLensTiltShiftCamera::getFilmSample(
 ) const {
     // project the point from the near plane to the untilted film
     float filmT = filmShift.z / cameraSample.z;
-    Point filmSample = Point(cameraSample.x * filmT, cameraSample.y * filmT, filmShift.z);
-    // tilt the film
-    return filmTiltRotate(filmSample);
+    Point filmSample = Point(cameraSample.x * filmT, cameraSample.y * filmT, 0);
+    // shift and then tilt the film
+    return filmSample + filmShift;
+    // TODO: correctly, the film should be rotated
+    //return filmTiltRotate(filmSample) + filmShift;
 }
 
 /**
