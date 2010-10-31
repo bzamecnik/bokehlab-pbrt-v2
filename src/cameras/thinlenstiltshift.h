@@ -68,10 +68,10 @@ public:
         Ray *
     ) const;
 
-    float GenerateRayDifferential(
-        const CameraSample &sample,
-        RayDifferential *ray
-    ) const;
+    //float GenerateRayDifferential(
+    //    const CameraSample &sample,
+    //    RayDifferential *ray
+    //) const;
 private:
     // ThinLensTiltShiftCamera Private Data
     Vector dxCamera, dyCamera;

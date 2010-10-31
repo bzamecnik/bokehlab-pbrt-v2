@@ -82,28 +82,32 @@ float ThinLensTiltShiftCamera::GenerateRay(
     return 1.f;
 }
 
+// TODO:
+// For correct tilt and shift resolve how to generate dxCamera and dyCamera.
+// For the the GenerateRayDifferential is disabled and GenerateRay without
+// ray differentials is used instead.
 
-float ThinLensTiltShiftCamera::GenerateRayDifferential(
-    const CameraSample &sample,
-    RayDifferential *ray
-) const {
-    // Get the ray going through the lens center
-    Point cameraSample = getCameraSample(sample);
-    Point filmSample = getFilmSample(cameraSample);
-    *ray = RayDifferential(Point(0,0,0), Normalize(Vector(filmSample)), 0.f, INFINITY);
-    
-    // Modify ray for depth of field
-    modifyRayForDof(*ray, sample);
-
-    // Compute offset rays for _ThinLensTiltShiftCamera_ ray differentials
-    ray->rxOrigin = ray->ryOrigin = ray->o;
-    ray->rxDirection = Normalize(Vector(cameraSample) + dxCamera);
-    ray->ryDirection = Normalize(Vector(cameraSample) + dyCamera);
-    ray->time = Lerp(sample.time, shutterOpen, shutterClose);
-    CameraToWorld(*ray, ray);
-    ray->hasDifferentials = true;
-    return 1.f;
-}
+//float ThinLensTiltShiftCamera::GenerateRayDifferential(
+//    const CameraSample &sample,
+//    RayDifferential *ray
+//) const {
+//    // Get the ray going through the lens center
+//    Point cameraSample = getCameraSample(sample);
+//    Point filmSample = getFilmSample(cameraSample);
+//    *ray = RayDifferential(Point(0,0,0), Normalize(-Vector(filmSample)), 0.f, INFINITY);
+//
+//    // Modify ray for depth of field
+//    modifyRayForDof(*ray, sample);
+//
+//    // Compute offset rays for _ThinLensTiltShiftCamera_ ray differentials
+//    ray->rxOrigin = ray->ryOrigin = ray->o;
+//    ray->rxDirection = Normalize(Vector(cameraSample) + dxCamera);
+//    ray->ryDirection = Normalize(Vector(cameraSample) + dyCamera);
+//    ray->time = Lerp(sample.time, shutterOpen, shutterClose);
+//    CameraToWorld(*ray, ray);
+//    ray->hasDifferentials = true;
+//    return 1.f;
+//}
 
 float ThinLensTiltShiftCamera::computeFocalDistance(
     float focalLength,
