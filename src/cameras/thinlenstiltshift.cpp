@@ -37,14 +37,15 @@ ThinLensTiltShiftCamera:: ThinLensTiltShiftCamera(
         float lensRadius,
         float focalLength_,
         float imageDistance,
-        float filmtiltx, float filmshifty,
+        float filmtiltx,
+        const float filmshift[2],
         float fov,
         Film *film
 ) : ProjectiveCamera(cam2world, Perspective(fov, 1e-2f, 1000.f),
         screenWindow, shutterOpen, shutterClose, lensRadius,
         computeFocalDistance(focalLength_, imageDistance),
         film),
-    filmTiltX(filmtiltx), filmShift(0., filmshifty, -imageDistance),
+    filmTiltX(filmtiltx), filmShift(filmshift[0], filmshift[1], -imageDistance),
     focalLength(focalLength_),
     scheimpflugLineX(0.), hingeLineX(0.),
     filmTiltRotate(
@@ -221,16 +222,22 @@ ThinLensTiltShiftCamera *CreateThinLensTiltShiftCamera(
     // TODO: in future use a 2D vector for horizonal/vertical tilt and shift
     // - [*] horizontal tilt = tilt around the X direction of the film center
     // - vertical tilt = swing = tilt around the Y direction of the film center
-    // - horizontal shift = shift in the X direction
+    // - [*] horizontal shift = shift in the X direction
     // - [*] vertical shift = shift in the Y direction
     // Note:
     // - the film tilt is given and stored in degrees and
     // - it rotates the film around its center in the X direction
     float filmtiltx = params.FindOneFloat("filmtiltx", 0.);
-    // Note:
-    // - film is shifted in the Y direction
-    float filmshifty = params.FindOneFloat("filmshifty", 0.);
+
+    const int FILM_SHIFT_PARAMETERS_COUNT = 2; // expected: [ x, y ]
+    int filmshiftCount; // real
+    float filmshift[FILM_SHIFT_PARAMETERS_COUNT] = {0.f, 0.f};
+    const float *filmshiftParam = params.FindFloat("filmshift", &filmshiftCount);
+    if ((filmshiftParam != NULL) && (filmshiftCount == FILM_SHIFT_PARAMETERS_COUNT)) {
+        memcpy(filmshift, filmshiftParam, FILM_SHIFT_PARAMETERS_COUNT * sizeof(float));
+    }
+
     return new ThinLensTiltShiftCamera(cam2world, screen, shutteropen,
         shutterclose, lensradius, focallength, imagedistance,
-        filmtiltx, filmshifty, fov, film);
+        filmtiltx, filmshift, fov, film);
 }

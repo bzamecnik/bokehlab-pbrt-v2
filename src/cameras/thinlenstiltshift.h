@@ -58,7 +58,8 @@ public:
         float lensRadius,
         float focalLength,
         float imageDistance,
-        float filmtiltx, float filmshifty,
+        float filmtiltx,
+        const float filmshift[2],
         float fov,
         Film *film
     );
