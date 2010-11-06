@@ -85,8 +85,8 @@ private:
     // Iit depends on the current image distance.
 
     // internal data for tilt-shift computation
-    float scheimpflugLineX;
-    float hingeLineX;
+    Ray scheimpflugLine;
+    Ray hingeLine;
     boolean tiltEnabled;
     Transform filmTiltRotate;
 

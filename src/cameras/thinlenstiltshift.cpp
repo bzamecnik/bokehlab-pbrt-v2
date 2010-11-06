@@ -47,7 +47,8 @@ ThinLensTiltShiftCamera:: ThinLensTiltShiftCamera(
         film),
     filmTiltX(filmtiltx), filmShift(filmshift[0], filmshift[1], -imageDistance),
     focalLength(focalLength_),
-    scheimpflugLineX(0.), hingeLineX(0.),
+    scheimpflugLine(Point(0, 0, 0), Vector(1, 0, 0), 0.f, INFINITY),
+    hingeLine(Point(0, focalLength_, 0), Vector(1, 0, 0), 0.f, INFINITY),
     filmTiltRotate(RotateY(filmtiltx))
 {
     // Compute differential changes in origin for perspective camera rays
@@ -58,8 +59,8 @@ ThinLensTiltShiftCamera:: ThinLensTiltShiftCamera(
 
     if (tiltEnabled) {
         float tan_tilt_angle = tanf(Radians(filmtiltx));
-        scheimpflugLineX = imageDistance / tan_tilt_angle;
-        hingeLineX = focalLength / tan_tilt_angle;
+        scheimpflugLine.o.x = imageDistance / tan_tilt_angle;
+        hingeLine.o.x = focalLength / tan_tilt_angle;
     }
 }
 
@@ -162,8 +163,8 @@ inline void ThinLensTiltShiftCamera::modifyRayForDof(
     // for a common parameter
     float rayParam; // ray parameter
     if (tiltEnabled) {
-        rayParam = (scheimpflugLineX * ray.d.z)
-            / (focalLength * (ray.d.x - hingeLineX + scheimpflugLineX));
+        rayParam = (scheimpflugLine.o.x * ray.d.z)
+            / (focalLength * (ray.d.x - hingeLine.o.x + scheimpflugLine.o.x));
     } else {
         rayParam = focalDistance / ray.d.z;
     }
